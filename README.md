@@ -157,11 +157,57 @@ Here's a complete example of discovering and analyzing PDF parsing repositories:
 # 2. Analyze all discovered repositories
 bash classify_batch.sh inputs.json
 
-# 3. View results
+# 3. Generate visualization report
+uv run visualize.py
+
+# 4. View results
 jq '.[0]' classified_repos.json  # View first classified repository
+open repository_report.html     # Open the HTML report in your browser
 ```
 
-### Output File
+### 6. Visualization and Analysis
+
+After classifying repositories, you can generate comprehensive HTML reports using the `visualize.py` script:
+
+```bash
+# Generate HTML report with automatic dependency management
+uv run visualize.py
+
+# Or run directly if you have pandas and numpy installed
+python visualize.py
+```
+
+The visualization script creates an enhanced HTML report (`repository_report.html`) that includes:
+
+#### **Top 20 Most Undervalued Repositories**
+- Repositories with high quality scores relative to their star count
+- **Value Score Methodology**: `quality_score / log10(star_count + 10)` - higher scores indicate hidden gems
+- Visual highlighting for repositories specifically flagged by the LLM as underrated
+- Columns: Rank, Repository, Stars, Overall Quality, Innovation, Value Score, Domain, Motivation
+
+#### **Top 20 Best Overall Repositories** 
+- Repositories with the highest overall quality scores across all evaluation criteria
+- Columns: Rank, Repository, Stars, Overall Quality, Code Quality, Innovation, Usefulness, User Friendly, Domain
+
+#### **Top 20 Most Overrated Repositories**
+- Repositories with high star counts relative to their quality scores
+- **Overrated Score Methodology**: `log10(star_count + 10) / quality_score` - higher scores indicate potentially overvalued projects
+- Visual highlighting for repositories specifically flagged by the LLM as overrated
+- Columns: Rank, Repository, Stars, Overall Quality, Innovation, Overrated Score, Domain, Motivation
+
+#### **Key Features**
+- **Automatic Dependencies**: When run with `uv run`, the script automatically installs required dependencies (pandas, numpy) in a temporary environment
+- **Visual Indicators**: LLM-flagged repositories are highlighted with colored backgrounds and borders
+- **Interactive Links**: All repository names link directly to their GitHub pages
+- **Summary Statistics**: Overview of total repositories analyzed, domains covered, and average quality scores
+- **Responsive Design**: Clean, modern HTML styling for easy reading
+
+The report helps identify:
+- **Hidden gems** that deserve more attention
+- **High-quality projects** worth studying or contributing to  
+- **Potentially overvalued** repositories that may not live up to their popularity
+
+### 7. Output Files
 
 All classified and enriched results are appended as JSON objects to the `classified_repos.json` file by default. Each entry in this JSON array will look similar to this example:
 

@@ -9,9 +9,9 @@ usage() {
     echo "Usage: $0 [OPTIONS] \"search_term1,search_term2,search_term3,...\""
     echo ""
     echo "Options:"
-    echo "  -l, --limit NUM     Number of repos per search term (default: 15)"
+    echo "  -l, --limit NUM     Number of repos per search term (default: 20)"
     echo "  -o, --output FILE   Output file name (default: inputs.json)"
-    echo "  -t, --total NUM     Total number of repos to select (default: 50)"
+    echo "  -t, --total NUM     Total number of repos to select (default: 100)"
     echo "  -h, --help          Show this help message"
     echo ""
     echo "Examples:"
@@ -145,6 +145,16 @@ for search_term in "${SEARCH_ARRAY[@]}"; do
         merge_json $SEARCH_RESULTS_FILE temp_search.json
     else
         echo "  Warning: Low-star search failed for '$search_term'"
+    fi
+
+        search_count=$((search_count + 1))
+    echo "Search $search_count: High-star search for '$search_term' (hidden gems)..."
+    gh search repos "$search_term" --stars=">1000" --created=">=2021-01-01" --limit="$((LIMIT_PER_SEARCH / 3))" \
+        --json="fullName,description,stargazersCount,forksCount,pushedAt,url" > temp_search.json 2>/dev/null
+    if [ $? -eq 0 ]; then
+        merge_json $SEARCH_RESULTS_FILE temp_search.json
+    else
+        echo "  Warning: High-star search failed for '$search_term'"
     fi
     
     search_count=$((search_count + 1))

@@ -146,6 +146,19 @@ LICENSE=$(echo "$GH_REPO_DATA" | jq -r '.licenseInfo.spdxId // .licenseInfo.name
 # openIssuesCount from gh repo view is for *all* issues, not just open. Let's use API for open_issues_count
 FETCHED_GITHUB_URL=$(echo "$GH_REPO_DATA" | jq -r '.url // "'"$REPO_URL"'"')
 
+# --- Duplicate Check ---
+if [ -f "$OUTPUT_JSON_FILE" ]; then
+    echo "Checking for duplicates in $OUTPUT_JSON_FILE..."
+    EXISTING_URL=$(jq -r --arg url "$FETCHED_GITHUB_URL" '.[] | select(.github_url == $url) | .github_url' "$OUTPUT_JSON_FILE" 2>/dev/null | head -1)
+    if [ -n "$EXISTING_URL" ]; then
+        echo "Repository $FETCHED_GITHUB_URL already exists in $OUTPUT_JSON_FILE. Skipping."
+        exit 0
+    fi
+    echo "Repository not found in existing data. Proceeding with classification."
+else
+    echo "$OUTPUT_JSON_FILE does not exist yet. Proceeding with classification."
+fi
+
 # Get total commit count by summing across all paginated results
 COMMIT_COUNT=$(gh api "repos/$REPO_OWNER_NAME/commits" --paginate -q '.[] | 1' 2>/dev/null | wc -l || echo 0)
 if [ "$COMMIT_COUNT" == "null" ] || [ -z "$COMMIT_COUNT" ]; then COMMIT_COUNT=0; fi
