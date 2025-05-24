@@ -1,5 +1,8 @@
 # SpecStory explanation file
 .specstory/.what-is-this.md
 *.json
+*.png
+*.csv
+*.html
 repomix-output.json
 .cursorindexingignore
