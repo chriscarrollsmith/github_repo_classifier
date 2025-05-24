@@ -1,6 +1,6 @@
 # Automated GitHub Repository Classifier & Discovery
 
-This project provides a powerful set of Bash scripts to automate the analysis and classification of GitHub repositories using AI. It leverages open-source command-line tools like `repomix`, `llm`, and `gh` to extract repository information, summarize codebases, and apply an LLM-based classification schema.
+This project provides a powerful set of Bash scripts to automate the discovery, analysis, and classification of GitHub repositories using AI. It leverages open-source command-line tools like `repomix`, `llm`, and `gh` to search for repositories, extract repository information, summarize codebases, and apply an LLM-based classification schema.
 
 ## Purpose & Motivation
 
@@ -8,17 +8,35 @@ My thesis for this project is that there's a wealth of incredible, undiscovered 
 
 ## How It Works
 
-The core of the analysis is handled by the `workflow.sh` script:
+The project consists of two main components: **repository discovery** and **repository analysis**.
 
-1.  **Input:** It takes a GitHub repository URL as an argument.
-2.  **GitHub Data Fetching:** Uses the `gh` CLI to retrieve essential repository metadata (stars, commits, license, etc.).
-3.  **Codebase Packing:** `repomix` creates a concise, LLM-friendly text representation of the repository's source code, excluding binary files and ignored patterns.
-4.  **Schema & Template Management:** On its first run, `workflow.sh` automatically defines and saves a specialized `llm` schema and template, ensuring the LLM understands the desired output format and evaluation criteria.
-5.  **LLM Classification:** The packed codebase summary and fetched GitHub metadata are fed to the configured LLM (e.g., Google Gemini Flash), which generates a JSON object based on the predefined classification schema.
-6.  **Data Enrichment:** The script then enriches this LLM-generated JSON with all the initially fetched GitHub metadata.
-7.  **Output Persistence:** The complete, enriched JSON object is appended to `classified_repos.json` (or a configured output file).
+### Repository Discovery
 
-The `workflow_batch.sh` script automates this process for a list of repository URLs provided in a JSON file, making it easy to classify many projects sequentially.
+The `search_repos.sh` script (which can be used for any type of repository search, not just PDF-related) automates the discovery of relevant repositories:
+
+1. **Flexible Search Terms:** Takes comma-separated search terms as arguments
+2. **Multi-Strategy Search:** For each search term, performs multiple GitHub searches:
+   - General search across all repositories
+   - Python-focused search
+   - Low-star "hidden gems" search (1-20 stars)
+   - Recently active repositories search
+3. **Intelligent Filtering:** Filters for repositories created since 2020 and applies various criteria
+4. **Deduplication:** Removes duplicate repositories and provides a diverse selection
+5. **Output Generation:** Creates a JSON array of repository URLs ready for batch analysis
+
+### Repository Analysis
+
+The core analysis is handled by the `classify_repos.sh` script:
+
+1. **Input:** Takes a GitHub repository URL as an argument
+2. **GitHub Data Fetching:** Uses the `gh` CLI to retrieve essential repository metadata (stars, commits, license, etc.)
+3. **Codebase Packing:** `repomix` creates a concise, LLM-friendly text representation of the repository's source code, excluding binary files and ignored patterns
+4. **Schema & Template Management:** On its first run, `classify_repos.sh` automatically defines and saves a specialized `llm` schema and template, ensuring the LLM understands the desired output format and evaluation criteria
+5. **LLM Classification:** The packed codebase summary and fetched GitHub metadata are fed to the configured LLM (e.g., Google Gemini Flash), which generates a JSON object based on the predefined classification schema
+6. **Data Enrichment:** The script enriches this LLM-generated JSON with all the initially fetched GitHub metadata
+7. **Output Persistence:** The complete, enriched JSON object is appended to `classified_repos.json` (or a configured output file)
+
+The `classify_batch.sh` script automates this process for a list of repository URLs provided in a JSON file, making it easy to classify many projects sequentially.
 
 ## Prerequisites
 
@@ -43,9 +61,42 @@ You will also need to configure `llm` with API keys for your chosen LLM provider
 
 ## Usage
 
-### 1. LLM Classification Schema
+### 1. Repository Discovery
 
-The `workflow.sh` script automatically sets up the necessary `llm` schema and template. The classification criteria the LLM will evaluate and output are:
+Use the `search_repos.sh` script to discover repositories based on search terms. Despite its name, this script can search for any type of repository:
+
+#### Basic Usage
+```bash
+# Search for PDF parsing repositories
+./search_repos.sh "PDF parsing,RAG PDF,document extraction,PDF table extraction"
+
+# Search for machine learning repositories
+./search_repos.sh "machine learning,deep learning,neural networks,tensorflow"
+
+# Search for web development frameworks
+./search_repos.sh "react,vue,angular,svelte,web framework"
+```
+
+#### Advanced Usage with Options
+```bash
+# Custom limits and output file
+./search_repos.sh -l 20 -t 60 -o ml_repos.json "machine learning,deep learning"
+
+# Fewer repositories per search term, different output
+./search_repos.sh --limit 10 --total 30 --output web_repos.json "react,vue,angular"
+```
+
+#### Options
+- `-l, --limit NUM`: Number of repositories per search term (default: 15)
+- `-o, --output FILE`: Output filename (default: inputs.json)
+- `-t, --total NUM`: Total number of repositories to select (default: 50)
+- `-h, --help`: Show usage information
+
+The script will create a JSON file with an array of repository URLs ready for batch analysis.
+
+### 2. LLM Classification Schema
+
+The `classify_repos.sh` script automatically sets up the necessary `llm` schema and template. The classification criteria the LLM will evaluate and output are:
 
 *   **`project_domain`** (string): The primary area or purpose of the project (e.g., 'web development framework', 'data science library', 'CLI tool for X').
 *   **`motivation`** (string): The core problem the project aims to solve or its main purpose. The LLM will attempt to quote or paraphrase from the README if possible.
@@ -57,19 +108,29 @@ The `workflow.sh` script automatically sets up the necessary `llm` schema and te
 *   **`underrated`** (bool, 0 or 1): Set to `1` (true) if the project deserves significantly more attention/stars given its quality, innovativeness, and usefulness relative to its current `star_count`. Otherwise, set to `0` (false).
 *   **`overrated`** (bool, 0 or 1): Set to `1` (true) if the project receives more attention/stars than its quality, innovativeness, or usefulness warrants, relative to its current `star_count`. Otherwise, set to `0` (false).
 
-### 2. Analyze a Single Repository
+### 3. Analyze a Single Repository
 
-To analyze a single GitHub repository, run `workflow.sh` with its URL:
+To analyze a single GitHub repository, run `classify_repos.sh` with its URL:
 
 ```bash
-bash workflow.sh https://github.com/simonw/datasette
+bash classify_repos.sh https://github.com/simonw/datasette
 ```
 
 The output will be appended to `classified_repos.json`.
 
-### 3. Analyze Multiple Repositories (Batch Processing)
+### 4. Analyze Multiple Repositories (Batch Processing)
 
-For batch processing, create a JSON file (e.g., `repos_to_analyze.json`) containing an array of GitHub repository URLs:
+#### Option A: Use the Discovery Script + Batch Analysis
+```bash
+# 1. Discover repositories
+./search_repos.sh "PDF parsing,RAG PDF,document extraction" 
+
+# 2. Analyze all discovered repositories
+bash classify_batch.sh inputs.json
+```
+
+#### Option B: Manual Repository List
+Create a JSON file (e.g., `repos_to_analyze.json`) containing an array of GitHub repository URLs:
 
 ```json
 [
@@ -79,10 +140,25 @@ For batch processing, create a JSON file (e.g., `repos_to_analyze.json`) contain
 ]
 ```
 
-Then, execute `workflow_batch.sh` with the path to your JSON file:
+Then execute `classify_batch.sh`:
 
 ```bash
-bash workflow_batch.sh repos_to_analyze.json
+bash classify_batch.sh repos_to_analyze.json
+```
+
+### 5. Complete Workflow Example
+
+Here's a complete example of discovering and analyzing PDF parsing repositories:
+
+```bash
+# 1. Discover PDF parsing repositories
+./search_repos.sh "PDF parsing,RAG PDF,document extraction,PDF table extraction,OCR PDF,langchain PDF,unstructured PDF"
+
+# 2. Analyze all discovered repositories
+bash classify_batch.sh inputs.json
+
+# 3. View results
+jq '.[0]' classified_repos.json  # View first classified repository
 ```
 
 ### Output File
@@ -107,20 +183,29 @@ All classified and enriched results are appended as JSON objects to the `classif
     "last_commit_date": "2023-10-27T12:34:56Z",
     "open_issues_count": 150,
     "license": "Apache-2.0"
-  },
-  // ... more classified repository entries
+  }
 ]
 ```
 
 ## Configuration
 
-You can customize the behavior of the scripts by modifying the variables at the beginning of `workflow.sh`:
+You can customize the behavior of the scripts by modifying the variables at the beginning of `classify_repos.sh`:
 
 *   `DEFAULT_LLM_MODEL`: The primary LLM model alias to use (e.g., `"gemini-2.5-flash-preview-04-17"`).
 *   `LLM_FALLBACK_MODEL`: An alternative model to use if the default model encounters rate limits or errors (e.g., `"gpt-4.1-mini"`).
 *   `TEMPLATE_NAME`: The name used for the `llm` template (default: `"github_repo_classify"`).
 *   `OUTPUT_JSON_FILE`: The name of the file where all classified results will be aggregated (default: `"classified_repos.json"`).
 *   `REPOMIX_OUTPUT_FILE_PREFIX`: Prefix for temporary `repomix` output files.
+
+## Use Cases
+
+This project is particularly useful for:
+
+- **Technology Scouting:** Discovering innovative but underrated repositories in specific domains
+- **Competitive Analysis:** Understanding the landscape of tools and libraries in a particular field
+- **Due Diligence:** Evaluating the quality and potential of open-source projects
+- **Research:** Analyzing trends and patterns in software development
+- **Investment Research:** Identifying promising open-source projects that might warrant commercial attention
 
 ## Contributing
 
