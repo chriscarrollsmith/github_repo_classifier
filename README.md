@@ -94,6 +94,28 @@ Use the `search_repos.sh` script to discover repositories based on search terms.
 
 The script will create a JSON file with an array of repository URLs ready for batch analysis.
 
+### 1b. List Repositories by Owner (Alternative to Discovery)
+
+If you already know the GitHub users or organizations whose repositories you want to process, you can use the `my_repos.sh` script. This script directly fetches all repositories owned by the specified users/organizations.
+
+#### Basic Usage
+```bash
+# Fetch all repositories from chriscarrollsmith and Promptly-Technologies-LLC
+./my_repos.sh "chriscarrollsmith,Promptly-Technologies-LLC"
+
+# Fetch repositories for a single user and save to a custom output file
+./my_repos.sh -o user_xyz_repos.json "UserXYZ"
+```
+
+#### Arguments
+-   `"owner1,owner2,..."`: **Required**. A comma-separated string of GitHub usernames or organization names.
+
+#### Options
+-   `-o, --output FILE`: Output filename for the JSON array of repository URLs (default: `inputs.json`).
+-   `-h, --help`: Show usage information.
+
+This script will create a JSON file (defaulting to `inputs.json`) containing an array of repository URLs, which can then be used as input for the `classify_batch.sh` script.
+
 ### 2. LLM Classification Schema
 
 The `classify_repos.sh` script automatically sets up the necessary `llm` schema and template. The classification criteria the LLM will evaluate and output are:
