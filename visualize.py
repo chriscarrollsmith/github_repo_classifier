@@ -68,7 +68,7 @@ print(underrated_repos.to_string(index=False))
 
 # Create enhanced HTML report with both undervalued and best overall repositories
 print("\nCreating enhanced HTML repository report...")
-with open('repository_report.html', 'w') as f:
+with open('repository_report.html', 'w', encoding='utf-8') as f:
     f.write('''<html>
 <head>
     <title>GitHub Repository Analysis Report</title>
