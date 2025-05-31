@@ -2,7 +2,7 @@
 
 # Script to analyze a GitHub repository and classify it using repomix and llm
 
-DEFAULT_LLM_MODEL="gemini-2.5-flash-preview-04-17"
+DEFAULT_LLM_MODEL="gemini-2.5-flash-preview-05-20"
 LLM_FALLBACK_MODEL="gpt-4.1-mini"
 
 TEMPLATE_NAME="github_repo_classify"
@@ -59,56 +59,18 @@ if ! llm templates | grep -qw "$TEMPLATE_NAME :"; then
         "overrated int" # "0 (false) or 1 (true): Receives more attention/stars than its quality or usefulness warrants vs. current star_count"
     )
 
-    # --- Schema ID Retrieval and Definition ---
-    echo "Ensuring LLM schema is defined and retrieving its ID..."
-
     # 1. Construct the schema definition string for 'llm --schema'
     #    Example: "'project_domain string,motivation string,...'"
     SCHEMA_DEFINITION_FOR_LLM_COMMAND="'$(IFS=,; echo "${SCHEMA_FIELDS[*]}")'"
     echo "Schema definition string for llm: $SCHEMA_DEFINITION_FOR_LLM_COMMAND"
 
-    # 2. Detect if we already have a schema with this signature
-    #    Example: "{project_domain, motivation, tech_stack, ...}" (with spaces after commas)
-    SCHEMA_FIELD_NAMES=()
-    for field_def in "${SCHEMA_FIELDS[@]}"; do
-        SCHEMA_FIELD_NAMES+=("$(echo "$field_def" | awk '{print $1}')") # Extract first part (name)
-    done
-    SUMMARY_MATCH_CONTENT=$(IFS=','; echo "${SCHEMA_FIELD_NAMES[*]}")
-    TARGET_SUMMARY_SIGNATURE="{${SUMMARY_MATCH_CONTENT//,/, }}"
-    echo "Searching for schema ID using summary signature: $TARGET_SUMMARY_SIGNATURE"
-
-    # 3. Ensure this schema definition is known to llm (creates if new, no-op if exists)
-    echo "Registering/Verifying schema definition with llm..."
-    if eval "llm --schema $SCHEMA_DEFINITION_FOR_LLM_COMMAND"; then
-        echo "Schema definition processed by llm."
-    else
-        echo "Failed to process schema definition with llm. Aborting."
-        exit 1
-    fi
-
-    # 4. Retrieve the SCHEMA_ID using the signature
-    SCHEMA_ID=$(llm schemas list | awk -v sig="$TARGET_SUMMARY_SIGNATURE" '
-      $1 == "-id:" || $1 == "- id:" {id=$2}
-      $1 == "summary:" {getline; gsub(/^[ \t]+/, "", $0); if ($0 == sig) {print id; exit}}
-    ')
-
-    # 5. Validate SCHEMA_ID
-    if [ -n "$SCHEMA_ID" ]; then
-        echo "Successfully retrieved Schema ID: $SCHEMA_ID"
-    else
-        echo "Error: Failed to retrieve Schema ID for signature: $TARGET_SUMMARY_SIGNATURE"
-        echo "Available schemas:"
-        llm schemas list
-        exit 1
-    fi
-
 # --- Template Definition ---
 
-    echo "Defining LLM template: $TEMPLATE_NAME for schema $SCHEMA_ID and model $DEFAULT_LLM_MODEL"
+    echo "Defining LLM template: $TEMPLATE_NAME with embedded schema using model $DEFAULT_LLM_MODEL"
     # Note: $variable syntax is used by llm for template variables.
     SYSTEM_PROMPT_TEMPLATE="You are an expert software engineering analyst.
 The user will provide a codebase summary (packed by repomix).
-Your task is to evaluate this codebase and respond ONLY with a valid JSON object matching the schema '$SCHEMA_ID'.
+Your task is to evaluate this codebase and respond ONLY with a valid JSON object adhering to the defined structure.
 Do NOT include any other text, explanation, or markdown formatting around the JSON.
 
 Schema fields to populate:
@@ -126,8 +88,8 @@ The repository has received \$star_count stars.
 Ensure all fields in the JSON response are populated.
 "
     # Save the template, associating it with the schema and default model
-    if llm --schema "$SCHEMA_ID" --system "$SYSTEM_PROMPT_TEMPLATE" --save "$TEMPLATE_NAME" -m "$DEFAULT_LLM_MODEL"; then
-      echo "Template $TEMPLATE_NAME saved."
+    if llm --schema "$SCHEMA_DEFINITION_FOR_LLM_COMMAND" --system "$SYSTEM_PROMPT_TEMPLATE" --save "$TEMPLATE_NAME" -m "$DEFAULT_LLM_MODEL"; then
+      echo "Template $TEMPLATE_NAME saved with embedded schema."
     else
       echo "Failed to save template $TEMPLATE_NAME. Aborting."
       exit 1

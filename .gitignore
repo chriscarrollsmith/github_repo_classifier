@@ -4,5 +4,5 @@
 *.png
 *.csv
 *.html
-repomix-output.json
+repomix*out*
 .cursorindexingignore
